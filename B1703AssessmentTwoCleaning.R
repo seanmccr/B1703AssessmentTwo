@@ -1,8 +1,8 @@
 # -----  B1703 Assessment 2 | Pre-Tableau Cleaning | 21.03.2024 -----]
 
 # ----- 1. Loading in datasets -----
-ATP2023Correct2 <- readxl::read_xlsx("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023CorrectMatches.xlsx")
-ATP2023Incorrect2 <- read.csv("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023SeasonIncorrectMatches.csv")
+ATP2023Correct <- readxl::read_xlsx("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023CorrectMatches.xlsx")
+ATP2023Incorrect <- read.csv("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023SeasonIncorrectMatches.csv")
 
 ##### 1.2. Libraries -----
 # Load the dplyr package for data manipulation
@@ -20,12 +20,12 @@ ATP2023Incorrect <- ATP2023Incorrect %>%
          LRank = loser_rank
       )
 
-ATP2023Incorrect2 <- ATP2023Incorrect2 %>%
+ATP2023Incorrect <- ATP2023Incorrect %>%
   rename(
-    LSeed = LRank
+    LSeed = loser_seed,
+    WSeed = winner_seed
   )
 
-ATP2023Incorrect <- ATP2023Incorrect2
 
 # Remove columns
 ATP2023Incorrect <- select(ATP2023Incorrect, -c(1))
@@ -347,7 +347,7 @@ head(ATP2023Final_withSeries)
 
 # Reordering Dataset
 ATP2023Final_reordered <- ATP2023Final_withSeries %>%
-  select(Tournament, Series, Surface, Date, Winner, WHand, WHeight, WCountry, WAge, Loser, LHand, LHeight, 
+  select(Tournament, Series, Surface, Date, Winner, WSeed, WHand, WHeight, WCountry, WAge, Loser, LSeed, LHand, LHeight, 
          LCountry, LAge, BestOf, Round, Minutes, WAce, WDoubleFault, WTotalSVPts, W1stIn, W1stWon, W2ndWon, 
          WSVGames, WBPSave, WBPFaced, LAce, LDoubleFault, LTotalSVPts, L1stIn, L1stWon, L2ndWon, LSVGames, LBPSave, 
          LBPFaced, WRankPts, LRankPts, WRank, LRank, W1, L1, W2, L2, W3, L3, W4, L4, W5, L5) 
@@ -385,9 +385,8 @@ ATP2023Final_reordered <- ATP2023Final_reordered %>%
 ATP2023Final_reordered <- ATP2023Final_reordered %>%
   filter(!grepl("NextGen Finals", Tournament))
 
-ATPFinal <- ATP2023Final_reordered
-
-ATP2023PointsDraft <- ATP2023Final
+ 
+ATP2023PointsDraft <- ATP2023Final_reordered
 
 # Replace NA values in the 'Tournament' column with 'ATP500' for United Cup entries
 ATP2023PointsDraft <- ATP2023PointsDraft %>%
@@ -485,143 +484,146 @@ ATP2023PointsDraft_UnitedCup <- ATP2023PointsDraft_UnitedCup %>%
   )
 
 
-
-
-DRAFTATP2023Incorrect <- DRAFTATP2023Incorrect %>%
-  rename(
-    WRank = winner_rank,
-    LRank = loser_rank,
-  )
-
-
-DRAFTATP2023Incorrect <- DRAFTATP2023Incorrect %>%
-  mutate(across(c(W1, L1, W2, L2, W3, L3, W4, L4, W5, L5), ~as.numeric(gsub("[^0-9.]", "", .))))
-
-DRAFTATP2023Incorrect <- DRAFTATP2023Incorrect %>%
-  mutate(across(c(W1, W2, W3, W4, W5, L1, L2, L3, L4, L5, WRank, LRank), as.numeric))
-
-# Select necessary columns from DRAFTATP2023Incorrect 
-DRAFTATP2023Incorrect_selected <- DRAFTATP2023Incorrect %>%
-  select(WRank, LRank, Date, W1, L1, W2, L2, W3, L3, W4, L4, W5, L5, WSeed, LSeed)
-
-# Merge the selected columns into ATP2023PointsDraft_OtherGames
-ATP2023PointsDraft_UnitedCup2 <- ATP2023PointsDraft_UnitedCup %>%
-  left_join(DRAFTATP2023Incorrect_selected, 
-            by = c("WRank", "LRank", "Date", "W1", "L1", "W2", "L2", "W3", "L3", "W4", "L4", "W5", "L5"))
-
-# Merge the selected columns into ATP2023PointsDraft_OtherGames
-ATP2023PointsDraft_OtherGames_updated2 <- ATP2023PointsDraft_OtherGames %>%
-  left_join(DRAFTATP2023Incorrect_selected, 
-            by = c("WRank", "LRank", "Date", "W1", "L1", "W2", "L2", "W3", "L3", "W4", "L4", "W5", "L5"))
-
-
-
-ATP2023PointsDraft_OtherGames <- ATP2023PointsDraft_OtherGames_updated2
-
-ATP2023PointsDraft_UnitedCup <- ATP2023PointsDraft_UnitedCup2
-
-
 # Combining the datasets
 ATP2023FinalClean <- bind_rows(ATP2023PointsDraft_OtherGames, ATP2023PointsDraft_UnitedCup)
 
 
+# Convert the result to a dataframe before printing
+ATP2023FinalCleanNAList <- ATP2023FinalClean %>% 
+  summarise_all(~sum(is.na(.))) %>%
+  as.data.frame()  # This line converts the result to a dataframe
+
+# Now print, and it should show all columns regardless of the number
+print(ATP2023FinalCleanNAList)
+
+
+ATP2023FinalClean_NAWHeight <- filter(ATP2023FinalClean, is.na(WHeight))
+
+
+ATP2023FinalClean <- ATP2023FinalClean %>%
+  mutate(LHeight = ifelse(Loser == "Dragos Nicolae Madaras", 191, LHeight))
+        
+
+
+ATP2023FinalClean <- ATP2023FinalClean %>%
+  mutate(WHeight = ifelse(Winner == "Ben Shelton", 193, WHeight),
+         WHeight = ifelse(Winner == "Gijs Brouwer", 191, WHeight),
+         WHeight = ifelse(Winner == "Alexander Shevchenko", 185, WHeight),
+         WHeight = ifelse(Winner == "Luca Van Assche", 178, WHeight),
+         WHeight = ifelse(Winner == "Rinky Hijikata", 178, WHeight),
+         WHeight = ifelse(Winner == "Stefanos Sakellaridis", 196, WHeight),
+         WHeight = ifelse(Winner == "Flavio Cobolli", 183, WHeight),
+         WHeight = ifelse(Winner == "Dalibor Svrcina", 178, WHeight),
+         WHeight = ifelse(Winner == "Juncheng Shang", 180, WHeight),
+         WHeight = ifelse(Winner == "Brandon Holt", 185, WHeight),
+         WHeight = ifelse(Winner == "Luciano Darderi", 183, WHeight),
+         WHeight = ifelse(Winner == "Matija Pecotic", 185, WHeight),
+         WHeight = ifelse(Winner == "Camilo Ugo Carabelli", 185, WHeight),
+         WHeight = ifelse(Winner == "Alexander Ritschard", 193, WHeight),
+         WHeight = ifelse(Winner == "Jacopo Berrettini", 193, WHeight),
+         WHeight = ifelse(Winner == "Riccardo Bonadio", 180, WHeight),
+         WHeight = ifelse(Winner == "Aleksandar Kovacevic", 183, WHeight),
+         WHeight = ifelse(Winner == "Francesco Passaro", 180, WHeight),
+         WHeight = ifelse(Winner == "Ivan Gakhov", 191, WHeight),
+         WHeight = ifelse(Winner == "Abedallah Shelbayh", 180, WHeight),
+         WHeight = ifelse(Winner == "Pablo Llamas Ruiz", 188, WHeight),
+         WHeight = ifelse(Winner == "Genaro Alberto Olivieri", 175, WHeight),
+         WHeight = ifelse(Winner == "Ryan Peniston", 180, WHeight),
+         WHeight = ifelse(Winner == "Jan Choinski", 196, WHeight),
+         WHeight = ifelse(Winner == "Filip Misolic", 180, WHeight),
+         WHeight = ifelse(Winner == "Alex Michelsen", 193, WHeight),
+         WHeight = ifelse(Winner == "Ethan Quinn", 191, WHeight),
+         WHeight = ifelse(Winner == "Dino Prizmic", 188, WHeight),
+         WHeight = ifelse(Winner == "Sho Shimabukuro", 180, WHeight),
+         WHeight = ifelse(Winner == "Gabriel Diallo", 203, WHeight),
+         WHeight = ifelse(Winner == "Omni Kumar", 173, WHeight),
+         WHeight = ifelse(Winner== "Yu Hsiou Hsu", 178, WHeight),
+         WHeight = ifelse(Winner == "Titouan Droguet", 191, WHeight),
+         WHeight = ifelse(Winner == "Jakub Mensik", 193, WHeight),
+         WHeight = ifelse(Winner == "Philip Sekulic", 191, WHeight),
+         WHeight = ifelse(Winner == "Alibek Kachmazov", 185, WHeight),
+         WHeight = ifelse(Winner == "Beibit Zhukayev", 196, WHeight),
+         WHeight = ifelse(Winner == "Terence Atmane", 193, WHeight),
+         WHeight = ifelse(Winner == "Bu Yunchaokete", 185, WHeight),
+         WHeight = ifelse(Winner == "Shintaro Mochizuki", 175, WHeight),
+         WHeight = ifelse(Winner == "Giovanni Mpetshi Perricard", 203, WHeight),
+         WHeight = ifelse(Winner == "Mark Lajal", 191, WHeight),
+         WHeight = ifelse(Winner == "Billy Harris", 193, WHeight)
+  )
+
+
+ATP2023FinalClean_B <- ATP2023FinalClean
+ATP2023FinalClean_C <- ATP2023FinalClean
 
 
 
+# Identifying whether seeded winners or losers received a Bye
+# First, we will create the new columns, assuming no bye initially
+ATP2023FinalClean_C <- ATP2023FinalClean_C %>%
+  mutate(WBye = FALSE, LBye = FALSE)
 
+# Define the order of rounds for easy reference
+round_order <- c("R128", "R64", "R32", "R16", "QF", "SF", "F")
 
-
-
-
-
-
-
-
-
-
-
-roundOrder <- c("R128", "R64", "R32", "R16", "QF", "SF", "F")
-
-
-detectByes <- function(data) {
-  # Append a unique identifier for each match combining Tournament and Date
-  data <- mutate(data, TournamentID = paste(Tournament, Date))
-  
-  # Identify unique players
-  players <- unique(c(data$Winner, data$Loser))
-  
-  # Initialize a Bye data frame
-  byeData <- data.frame(Player=character(), TournamentID=character(), Round=character(), stringsAsFactors=FALSE)
-  
-  # Loop through each player
-  for (player in players) {
-    # Filter matches involving the player
-    playerMatches <- filter(data, Winner == player | Loser == player)
-    
-    # Identify unique tournaments the player participated in
-    tournaments <- unique(playerMatches$TournamentID)
-    
-    # Check for Byes in each tournament
-    for (tournament in tournaments) {
-      # Filter matches in this specific tournament
-      tournamentMatches <- filter(playerMatches, TournamentID == tournament)
-      
-      # Within your detectByes function, just after obtaining tournamentMatches
-      tournamentRounds <- unique(tournamentMatches$Round)
-      startingRound <- min(match(tournamentRounds, roundOrder))
-      
-      # Now, check against the actual startingRound of the tournament
-      firstRound <- min(match(tournamentMatches$Round, roundOrder))
-      
-      # Adjusted condition
-      if (!is.na(firstRound) && firstRound > startingRound) {
-        previousRound <- roundOrder[firstRound - 1]
-        byeEntry <- data.frame(Player=player, TournamentID=tournament, Round=previousRound)
-        byeData <- rbind(byeData, byeEntry)
-      }
-    }
+# Function to check for bye
+# This function returns TRUE if the player's first match isn't in the first available round of the tournament
+checkForBye <- function(first_round_in_tournament) {
+  first_round_index <- match(first_round_in_tournament, round_order)
+  if (!is.na(first_round_index) && first_round_index > 1) {
+    return(TRUE)
   }
-  
-  # Return the Bye data
-  return(byeData)
+  return(FALSE)
 }
 
-# Detect Byes in the ATP2023PointsDraft_OtherGames dataset
-byeData <- detectByes(ATP2023PointsDraft_OtherGames)
+
+ATP2023FinalClean_C <- ATP2023FinalClean_C %>%
+  mutate(WBye = FALSE, LBye = FALSE) %>%
+  group_by(Tournament, Winner, Loser) %>%
+  mutate(WFirstRound = first(Round), LFirstRound = first(Round)) %>%
+  ungroup() %>%
+  rowwise() %>%  # Ensure we're checking byes for each match row separately
+  mutate(WBye = ifelse(!is.na(WSeed) & checkForBye(WFirstRound), TRUE, WBye),
+         LBye = ifelse(!is.na(LSeed) & checkForBye(LFirstRound), TRUE, LBye)) %>%
+  ungroup() %>%  # Reset the grouping after applying the conditional logic
+  select(-WFirstRound, -LFirstRound)  # Remove the helper columns
+
+
+# CODE TO INDICATE BYES
+ATP2023FinalClean <- ATP2023FinalClean_C %>%
+  group_by(Tournament, Winner, Loser) %>%
+  mutate(EarliestWinnerRound = min(match(Round, c("R128", "R64", "R32", "R16", "QF", "SF", "F"), nomatch = 100)),
+         EarliestLoserRound = min(match(Round, c("R128", "R64", "R32", "R16", "QF", "SF", "F"), nomatch = 100))) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(WBye = if_else(Series == "Grand Slam" | Series == "Masters Cup", FALSE,
+                        !is.na(WSeed) & EarliestWinnerRound > match("R32", c("R128", "R64", "R32", "R16", "QF", "SF", "F"))),
+         LBye = if_else(Series == "Grand Slam" | Series == "Masters Cup", FALSE,
+                        !is.na(LSeed) & EarliestLoserRound > match("R32", c("R128", "R64", "R32", "R16", "QF", "SF", "F")))) %>%
+  ungroup()
+
+# Spread the Bye status to all matches for each player in each tournament
+ATP2023FinalClean <- ATP2023FinalClean %>%
+  group_by(Tournament, Winner) %>%
+  mutate(WBye = ifelse(any(WBye == TRUE), TRUE, FALSE)) %>%
+  ungroup() %>%
+  group_by(Tournament, Loser) %>%
+  mutate(LBye = ifelse(any(LBye == TRUE), TRUE, FALSE)) %>%
+  ungroup()
 
 
 
 
+# ----- Tidy and Save -----
+# Rename
+ATP2023Final <- ATP2023FinalClean
 
+# Tidy Environment
+all_objects <- ls()
+objects_to_remove <- setdiff(all_objects, "ATP2023Final")
 
+# Leave ATP2023Final
+rm(list = objects_to_remove)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Save ATP2023Incorrect dataset as a new .csv file
+# Save ATP2023Final dataset as .csv file
 write.csv(ATP2023Final, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023Final.csv", row.names = FALSE)
-
-
 
