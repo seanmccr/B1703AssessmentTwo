@@ -610,6 +610,167 @@ ATP2023FinalClean <- ATP2023FinalClean %>%
   mutate(LBye = ifelse(any(LBye == TRUE), TRUE, FALSE)) %>%
   ungroup()
 
+library(dplyr)
+ATP2023Final <- ATP2023Final %>%
+  mutate(across(c(W1, W2, W3, W4, W5, L1, L2, L3, L4, L5), as.numeric))
+
+
+
+
+
+# ----- Individual Values -----
+
+# Combine 'Winner' and 'Loser' columns and remove duplicates
+unique_players <- unique(c(ATP2023Final$Winner, ATP2023Final$Loser))
+
+# Create a new dataframe with 'Players' variable
+PlayersDF <- data.frame(Players = unique_players)
+
+# Display the first few rows of the new dataframe to verify
+head(PlayersDF)
+
+
+
+
+
+
+
+
+library(dplyr)
+
+# Step 1 & 2: Calculating total points for winners and losers separately and then combining
+winner_points <- ATP2023Final %>%
+  group_by(Winner) %>%
+  summarize(W_Points = sum(WPoints, na.rm = TRUE)) %>%
+  rename(Players = Winner, `2023Pts` = W_Points)
+
+loser_points <- ATP2023Final %>%
+  group_by(Loser) %>%
+  summarize(L_Points = sum(LPoints, na.rm = TRUE)) %>%
+  rename(Players = Loser, `2023Pts` = L_Points)
+
+# Combining points from both Winner and Loser, and aggregating again in case of overlap
+all_points <- bind_rows(winner_points, loser_points) %>%
+  group_by(Players) %>%
+  summarize(`2023Pts` = sum(`2023Pts`, na.rm = TRUE))
+ 
+
+# Step 3 & 4: Joining with PlayersDF and ordering
+PlayersDF <- left_join(PlayersDF, all_points, by = "Players")
+  
+
+# Step 5: Generating the final ranking
+PlayersDF <- PlayersDF %>%
+  arrange(desc(`2023Pts`)) %>%
+  mutate(`2023FinRnk` = row_number())
+
+
+# Add a new column 'TourFinalStatus' based on '2023FinRnk'
+PlayersDF <- PlayersDF %>%
+  mutate(TourFinalStatus = case_when(
+    `2023FinRnk` <= 8 ~ "Qualified",
+    `2023FinRnk` %in% 9:10 ~ "Alternates",
+    TRUE ~ "Did not Qualify"
+  ))
+
+
+
+
+# Step 1: Aggregate aces for each player from both winner and loser perspectives
+winner_aces <- ATP2023Final %>%
+  group_by(Winner) %>%
+  summarize(TotalWAces = sum(WAce, na.rm = TRUE))
+
+loser_aces <- ATP2023Final %>%
+  group_by(Loser) %>%
+  summarize(TotalLAces = sum(LAce, na.rm = TRUE))
+
+# Step 2: Combine the ace totals for each player
+aces_combined <- bind_rows(winner_aces %>% rename(Player=Winner, Aces=TotalWAces), 
+                           loser_aces %>% rename(Player=Loser, Aces=TotalLAces)) %>%
+  group_by(Player) %>%
+  summarize(TotalAces = sum(Aces, na.rm = TRUE))
+
+# Step 3: Merge total aces information back into PlayersDF
+PlayersDF <- merge(PlayersDF, aces_combined, by.x = "Players", by.y = "Player", all.x = TRUE)
+
+# Replace NA values with 0 for players who did not serve any aces
+PlayersDF$TotalAces[is.na(PlayersDF$TotalAces)] <- 0
+
+# Display the updated PlayersDF
+head(PlayersDF)
+
+library(dplyr)
+library(stringr)
+library(dbplyr)
+library(tidyr)
+ATP2023Final <- ATP2023Final %>%
+  mutate(MatchName = paste(Tournament,",",Round,":", Winner,"vs",Loser))
+
+ATP2023Final <- ATP2023Final %>%
+  mutate(Series = str_replace(Series, "ATP500", "ATP 500"),
+         Series = str_replace(Series, "ATP250", "ATP 250"))
+
+
+
+ATP2023Final <- ATP2023Final %>%
+  mutate(W1stSv_Percentage = W1stIn / WTotalSVPts * 100,
+         L1stSv_Percentage = L1stIn / LTotalSVPts * 100)
+# Aggregate to calculate overall 1stSv% for each player
+player_stats <- ATP2023Final %>%
+  select(Winner, Loser, W1stSv_Percentage, L1stSv_Percentage) %>%
+  pivot_longer(cols = c(Winner, Loser), 
+               names_to = "PlayerType", 
+               values_to = "Player") %>%
+  pivot_longer(cols = c(W1stSv_Percentage, L1stSv_Percentage), 
+               names_to = "PercentageType", 
+               values_to = "ServicePercentage") %>%
+  group_by(Player) %>%
+  summarise(Overall_1stSv_Percentage = mean(ServicePercentage, na.rm = TRUE))
+# Printing out the first few rows of the player_stats to verify
+head(player_stats)
+
+ATP2023Final <- ATP2023Final %>%
+  mutate(
+    W1stSvWon_Percentage = (W1stWon / W1stIn) * 100,
+    L1stSvWon_Percentage = (L1stWon / L1stIn) * 100
+  )
+# BP Conversion Percentage
+ATP2023Final <- ATP2023Final %>%
+  mutate(
+    WBPConv_Percentage = (LBPFaced - LBPSave) / LBPFaced * 100,
+    LBPConv_Percentage = (WBPFaced - WBPSave) / WBPFaced * 100
+  )
+# 2nd Serve Points
+ATP2023Final <- ATP2023Final %>%
+  mutate(
+    WTotal2ndSVPts = WTotalSVPts - W1stIn,
+    LTotal2ndSVPts = LTotalSVPts - L1stIn
+  )
+
+# 2nd Serves In
+ATP2023Final <- ATP2023Final %>%
+  mutate(
+    W2ndIn = WTotal2ndSVPts - WDoubleFault,
+    L2ndIn = LTotal2ndSVPts - LDoubleFault
+  )
+
+# 2nd Serve Percentage In
+ATP2023Final <- ATP2023Final %>%
+  mutate(
+    W2ndSvIn_Percentage = (WTotal2ndSVPts - WDoubleFault) / WTotal2ndSVPts * 100,
+    L2ndSvIn_Percentage = (LTotal2ndSVPts - LDoubleFault) / LTotal2ndSVPts * 100
+  )
+# 2nd Sv Win Percentage
+ATP2023Final <- ATP2023Final %>%
+  mutate(
+    W2ndSvWon_Percentage = (W2ndWon / W2ndIn) * 100,
+    L2ndSvWon_Percentage = (L2ndWon / L2ndIn) * 100
+  )
+
+
+
+
 
 
 
@@ -626,4 +787,6 @@ rm(list = objects_to_remove)
 
 # Save ATP2023Final dataset as .csv file
 write.csv(ATP2023Final, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023Final.csv", row.names = FALSE)
+
+write.csv(PlayersDF, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/PlayersDF.csv", row.names = FALSE)
 
