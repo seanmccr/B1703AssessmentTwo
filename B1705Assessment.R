@@ -152,9 +152,11 @@ for (i in 1:num_matches) {
 new_df <- as.data.frame(new_columns)
 DRAFTATP2023Incorrect <- cbind(ATP2023Incorrect, new_df)
 
-# Remove variables, rename again
-ATP2023Final <- select(ATP2023Final, -c(14))
+
 ATP2023Final <- DRAFTATP2023Incorrect
+# Remove variables, rename again
+ATP2023Final <- select(ATP2023Final, -c(16))
+
 
 
 # NA Count for each variable
@@ -674,6 +676,8 @@ PlayersDF <- PlayersDF %>%
   ))
 
 
+ATP2023Final <- ATP2023FinalClean
+
 
 
 # Step 1: Aggregate aces for each player from both winner and loser perspectives
@@ -834,12 +838,10 @@ head(PlayersDF)
 
 
 # ----- Tidy and Save -----
-# Rename
-ATP2023Final <- ATP2023FinalClean
 
-# Tidy Environment
 all_objects <- ls()
-objects_to_remove <- setdiff(all_objects, "PlayersDF", "ATP2023Final")
+objects_to_keep <- c("PlayersDF", "ATP2023Final")
+objects_to_remove <- setdiff(all_objects, objects_to_keep)
 
 # Leave ATP2023Final
 rm(list = objects_to_remove)
@@ -849,42 +851,6 @@ write.csv(ATP2023Final, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Materi
 
 write.csv(PlayersDF, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/PlayersDF.csv", row.names = FALSE)
 
-
-atp2000 <- read.csv("/Users/seanmccrone/Desktop/atp_matches_2000.csv")
-
-atp1990 <- read.csv("/Users/seanmccrone/Desktop/atp_matches_1990.csv")
-
-
-HeightAvg <- atp2000 %>%
-  group_by(winner_name) %>%
-  summarize(AvgHt = mean(winner_ht, na.rm = TRUE))
-
-HeightAvg2023 <- ATP2023Final %>%
-  group_by(Winner) %>%
-  summarize(HtAvg = mean(WHeight, na.rm = TRUE))
-
-HeightAvg1990 <- atp1990 %>%
-  group_by(winner_name) %>%
-  summarize(AvgHt = mean(winner_ht, na.rm = TRUE))
-
-
-# Calculate the average height for 2000
-averageHeight <- mean(HeightAvg$AvgHt, na.rm = TRUE)
-
-# Print the average height
-print(paste("The average height is:", averageHeight))
-
-# Calculate the average height for 2023
-averageHeight2 <- mean(HeightAvg2023$HtAvg, na.rm = TRUE)
-
-# Print the average height
-print(paste("The average height in 2023 is:", averageHeight2))
-
-
-averageHeight1990 <- mean(HeightAvg1990$AvgHt, na.rm = TRUE)
-
-# Print the average height
-print(paste("The average height is:", averageHeight))
 
 
 
