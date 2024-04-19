@@ -1,15 +1,14 @@
-# -----  B1703 Assessment 2 | Pre-Tableau Cleaning | 21.03.2024 -----]
-
-# ----- 1. Loading in datasets -----
+# -----  B1705 | Cleaning | 08.03.2024 -----
+# ----- 1. Loading in datasets & Libraries -----
 ATP2023Correct <- readxl::read_xlsx("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023CorrectMatches.xlsx")
 ATP2023Incorrect <- read.csv("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023SeasonIncorrectMatches.csv")
 
-##### 1.2. Libraries -----
-# Load the dplyr package for data manipulation
 library(dplyr)
 library(lubridate)
 
-# ----- 2. Changing variable types/names/removing variables -----
+# ----- 2. Alterations, Cleaning& Pre-processing -----
+
+##### 2.1. Renaming and Removing -----
 # Converting date formats
 ATP2023Incorrect$tourney_date <- ymd(ATP2023Incorrect$tourney_date)
 
@@ -25,7 +24,6 @@ ATP2023Incorrect <- ATP2023Incorrect %>%
     LSeed = loser_seed,
     WSeed = winner_seed
   )
-
 
 # Remove columns
 ATP2023Incorrect <- select(ATP2023Incorrect, -c(1))
@@ -116,13 +114,14 @@ ATP2023Incorrect$Date <- ymd(ATP2023Incorrect$Date)
 # New Dataset as renamed
 MASTERATP2023Incorrect <- ATP2023Incorrect
 
+##### 2.2. Splitting Scores
 # Separating score into separate variables for better applicability
-# 1. Split 'Score' by space to separate the sets
+# Split 'Score' to separate sets
 score_splits <- strsplit(ATP2023Incorrect$Score, " ")
 View(score_splits)
 score_splits <- strsplit(ATP2023Incorrect$Score, " ")
  
-# Pre-make columns for new variables
+# Columns for variables
 num_matches <- length(ATP2023Incorrect$Score)
 new_columns <- matrix(NA, nrow = num_matches, ncol = 10)
 colnames(new_columns) <- c('W1', 'L1', 'W2', 'L2', 'W3', 'L3', 'W4', 'L4', 'W5', 'L5')
@@ -142,22 +141,20 @@ for (i in 1:num_matches) {
            games <- unlist(strsplit(set_score, "-"))
            # Tiebreaks 
              games <- gsub("\\((.*?)\\)", "", games)
-             # Put scores into new variables
+             # Scores into new variables
                new_columns[i, (2*j-1):(2*j)] <- games[1:2]
              }
  }
  
 
-
+# Renaming & binding
 new_df <- as.data.frame(new_columns)
 DRAFTATP2023Incorrect <- cbind(ATP2023Incorrect, new_df)
 
-
+# Rename
 ATP2023Final <- DRAFTATP2023Incorrect
-# Remove variables, rename again
+# Remove variables
 ATP2023Final <- select(ATP2023Final, -c(16))
-
-
 
 # NA Count for each variable
 na_count_ATP2023Final <- ATP2023Final %>% 
@@ -166,23 +163,17 @@ print(na_count_ATP2023Final)
 
 # Rename 
 ATP2023FinalDraft <- ATP2023Final
-
+# Remove Davis Cup entries
 ATP2023Final <- ATP2023Final %>%
   filter(!grepl("Davis Cup", Tournament))
 
-# Datasets featuring NA values only to assess circumstance i.e NAs in many can be explained by Walkovers so can be ignored
+# Dataset's featuring NA's to assess reason
 ATP2023Final_NA_WAce <- filter(ATP2023FinalDraft, is.na(WAce))
-
 ATP2023Final_NA_WRank <- filter(ATP2023Final, is.na(WRank))
-
 ATP2023Final_NA_LRank <- filter(ATP2023Final, is.na(LRank))
-
 ATP2023Final_NA_LAge <- filter(ATP2023Final, is.na(LAge))
-
 ATP2023Final_NA_Minutes <- filter(ATP2023Final, is.na(Minutes))
-
 ATP2023Final_NA_WHeight <- filter(ATP2023Final, is.na(WHeight))
-
 ATP2023Final_NA_LHeight <- filter(ATP2023Final, is.na(LHeight))
 
 # Updating age and Height
@@ -194,7 +185,7 @@ ATP2023Final <- ATP2023Final %>%
   mutate(LAge = ifelse(Loser == "Manas Dhamne", 15.1, LAge),
          LHeight = ifelse(Loser == "Manas Dhamne", 188, LHeight))
 
-# Inputting match length (via ATP website)
+# Inputting match length via ATP website
 ATP2023Final <- ATP2023FinalDraft %>%
   mutate(Minutes = ifelse(row_number() == 38, 73 , Minutes),
          Minutes = ifelse(row_number() == 35, 91, Minutes),
@@ -297,12 +288,11 @@ ATP2023Final <- ATP2023Final %>%
 ATP2023Final <- ATP2023Final %>%
   mutate(Minutes = ifelse(is.na(Minutes), 0, Minutes))
 
-
 # Load necessary libraries
 library(dplyr)
 library(lubridate)
 
-
+##### 2.2. Merging Datasets -----
 # Update ATP2023Correct with the tournament start date for each match
 ATP2023Correct <- ATP2023Correct %>%
   group_by(Tournament) %>%
@@ -328,7 +318,6 @@ print(unique_surfaces_correct)
 unique_series <- unique(ATP2023Correct$Series)
 print(unique_series)
 
-
 # Ensure all relevant columns are of the correct type (if not already converted)
 ATP2023Correct <- ATP2023Correct %>%
   mutate(across(c(W1, W2, W3, W4, W5, L1, L2, L3, L4, L5, WRank, LRank), as.numeric))
@@ -346,7 +335,7 @@ ATP2023Final_withSeries <- merge(ATP2023Final, ATP2023Correct_Series,
 # Optional: check if merge was performed correctly   
 head(ATP2023Final_withSeries)
 
-
+##### 2.4. Reordering and checking NA -----
 # Reordering Dataset
 ATP2023Final_reordered <- ATP2023Final_withSeries %>%
   select(Tournament, Series, Surface, Date, Winner, WSeed, WHand, WHeight, WCountry, WAge, Loser, LSeed, LHand, LHeight, 
@@ -359,41 +348,37 @@ na_count_ATP2023Final_reordered <- ATP2023Final_reordered %>%
   summarise_all(~sum(is.na(.)))
 print(na_count_ATP2023Final_reordered)
 
-
+# Renaming
 ATP2023Finalreordered_NA_Series <- filter(ATP2023Final_reordered, is.na(Series))
-
-
 
 # Matching NA values to other tournament names to fill them
 ATP2023Final_reordered <- ATP2023Final_reordered %>%
   group_by(Tournament) %>%
   mutate(
     Series = ifelse(is.na(Series),
-                    first(Series[!is.na(Series)]), # Take the first non-NA Series value within the same tournament
-                    Series) # Keeps original value
+                    first(Series[!is.na(Series)]), 
+                    Series) 
   ) %>%
-  ungroup() # Ensure to ungroup at the end for subsequent operations not to be affected
+  ungroup() 
 
 
-
+# Putting tournament names in 
 ATP2023Final_reordered <- ATP2023Final_reordered %>%
   mutate(Series = case_when(
     Tournament %in% c("Lyon", "Geneva") ~ "ATP250",
-    TRUE ~ Series # keeps the original Series value if condition is not met
+    TRUE ~ Series 
   ))
-
 
 # Remove 'Tournament' entries labelled 'NextGen Finals'
 ATP2023Final_reordered <- ATP2023Final_reordered %>%
   filter(!grepl("NextGen Finals", Tournament))
 
- 
+# Rename 
 ATP2023PointsDraft <- ATP2023Final_reordered
 
 # Replace NA values in the 'Tournament' column with 'ATP500' for United Cup entries
 ATP2023PointsDraft <- ATP2023PointsDraft %>%
   mutate(Series = if_else(Tournament == "United Cup" & is.na(Series), "ATP500", Series))
-
 
 # Filtering the dataset to include only 'United Cup' entries
 ATP2023PointsDraft_UnitedCup <- filter(ATP2023PointsDraft, Tournament == "United Cup")
@@ -406,10 +391,10 @@ ATP2023PointsDraft_OtherGames <- filter(ATP2023PointsDraft, Tournament != "Unite
 
 
 
-
-# Define a function for regular tournament point calculation (excluding United Cup)
+# ----- 3. Points Function -----
+# Define a function for regular tournament point calculation (exclude United Cup)
 getTournamentPoints <- function(series, round, winnerFlag = FALSE) {
-  # Define the points structure including Finals (F) and Winner (W) points
+  
   points <- list(
     'Grand Slam' = c(R128 = 10, R64 = 35, R32 = 45, R16 = 90, QF = 180, SF = 360, F = 480, W = 800),
     'Masters 1000' = c(R128 = 10, R64 = 15, R32 = 20, R16 = 45, QF = 90, SF = 180, F = 240, W = 400),
@@ -418,10 +403,10 @@ getTournamentPoints <- function(series, round, winnerFlag = FALSE) {
     'Masters Cup' = c(RR = 200, SF = 400, F = 0, W = 500)
   )
   
-  # Adjust the logic to handle 'Final' round for both players and 'Winner' points
+  # Adjust points depending on final
   seriesPoints <- points[[series]]
   if (is.null(seriesPoints)) {
-    return(NA)  # Return NA if the Series is not found
+    return(NA)  
   }
   
   finalPoints <- ifelse(round == 'F', seriesPoints['F'], 0)
@@ -432,9 +417,7 @@ getTournamentPoints <- function(series, round, winnerFlag = FALSE) {
   return(finalPoints + winnerBonus)
 }
 
-# Adjust the ATP2023PointsDraft dataset processing to use the updated function
-# Assuming 'Winner' and 'Loser' variables exist in ATP2023PointsDraft to determine the bonus points for the winner
-
+# Adjust ATP2023PointsDraft DF using function
 ATP2023PointsDraft_OtherGames <- ATP2023PointsDraft_OtherGames %>%
   rowwise() %>%
   mutate(
@@ -443,10 +426,8 @@ ATP2023PointsDraft_OtherGames <- ATP2023PointsDraft_OtherGames %>%
   ) %>%
   ungroup()
 
-# The rest of your original `B1703AssessmentTwoCleaning.R` code follows here,
-# ensuring it properly integrates with the updated points calculation logic.
 
-
+# Points function for United Cup 
 calculateUnitedCupPoints <- function(Round, LRank) {
   points <- case_when(
     Round == "RR" & LRank >= 1 & LRank <= 10 ~ 80,
@@ -476,19 +457,15 @@ calculateUnitedCupPoints <- function(Round, LRank) {
   return(points)
 }
 
-# Usage within the 'ATP2023PointsDraft_UnitedCup' dataset;
-# Modifying the dataset to include the updated points for Winners while
-# ensuring Losers receive 0 points by default
+# Updating dataset for United Cup points
 ATP2023PointsDraft_UnitedCup <- ATP2023PointsDraft_UnitedCup %>%
   mutate(
-    WPoints = calculateUnitedCupPoints(Round, LRank), # Allocate points only to Winners
-    LPoints = 0 # Explicitly set Losers' points to 0 for all entries
+    WPoints = calculateUnitedCupPoints(Round, LRank),
+    LPoints = 0 
   )
-
 
 # Combining the datasets
 ATP2023FinalClean <- bind_rows(ATP2023PointsDraft_OtherGames, ATP2023PointsDraft_UnitedCup)
-
 
 # Convert the result to a dataframe before printing
 ATP2023FinalCleanNAList <- ATP2023FinalClean %>% 
@@ -498,15 +475,14 @@ ATP2023FinalCleanNAList <- ATP2023FinalClean %>%
 # Now print, and it should show all columns regardless of the number
 print(ATP2023FinalCleanNAList)
 
-
+# Filtering
 ATP2023FinalClean_NAWHeight <- filter(ATP2023FinalClean, is.na(WHeight))
 
-
+# Inputting data
 ATP2023FinalClean <- ATP2023FinalClean %>%
   mutate(LHeight = ifelse(Loser == "Dragos Nicolae Madaras", 191, LHeight))
-        
 
-
+# Inputting data
 ATP2023FinalClean <- ATP2023FinalClean %>%
   mutate(WHeight = ifelse(Winner == "Ben Shelton", 193, WHeight),
          WHeight = ifelse(Winner == "Gijs Brouwer", 191, WHeight),
@@ -553,22 +529,19 @@ ATP2023FinalClean <- ATP2023FinalClean %>%
          WHeight = ifelse(Winner == "Billy Harris", 193, WHeight)
   )
 
-
+# Rename
 ATP2023FinalClean_B <- ATP2023FinalClean
 ATP2023FinalClean_C <- ATP2023FinalClean
 
-
-
-# Identifying whether seeded winners or losers received a Bye
-# First, we will create the new columns, assuming no bye initially
+# ----- 4. Identifying Byes -----
+# Columns with Bye initialised
 ATP2023FinalClean_C <- ATP2023FinalClean_C %>%
   mutate(WBye = FALSE, LBye = FALSE)
 
-# Define the order of rounds for easy reference
+# Define round orders
 round_order <- c("R128", "R64", "R32", "R16", "QF", "SF", "F")
 
 # Function to check for bye
-# This function returns TRUE if the player's first match isn't in the first available round of the tournament
 checkForBye <- function(first_round_in_tournament) {
   first_round_index <- match(first_round_in_tournament, round_order)
   if (!is.na(first_round_index) && first_round_index > 1) {
@@ -577,20 +550,20 @@ checkForBye <- function(first_round_in_tournament) {
   return(FALSE)
 }
 
-
+# Inputting Byes
 ATP2023FinalClean_C <- ATP2023FinalClean_C %>%
   mutate(WBye = FALSE, LBye = FALSE) %>%
   group_by(Tournament, Winner, Loser) %>%
   mutate(WFirstRound = first(Round), LFirstRound = first(Round)) %>%
   ungroup() %>%
-  rowwise() %>%  # Ensure we're checking byes for each match row separately
+  rowwise() %>%  
   mutate(WBye = ifelse(!is.na(WSeed) & checkForBye(WFirstRound), TRUE, WBye),
          LBye = ifelse(!is.na(LSeed) & checkForBye(LFirstRound), TRUE, LBye)) %>%
-  ungroup() %>%  # Reset the grouping after applying the conditional logic
-  select(-WFirstRound, -LFirstRound)  # Remove the helper columns
+  ungroup() %>%  #
+  select(-WFirstRound, -LFirstRound)
 
 
-# CODE TO INDICATE BYES
+# Code to indicate byes
 ATP2023FinalClean <- ATP2023FinalClean_C %>%
   group_by(Tournament, Winner, Loser) %>%
   mutate(EarliestWinnerRound = min(match(Round, c("R128", "R64", "R32", "R16", "QF", "SF", "F"), nomatch = 100)),
@@ -603,7 +576,7 @@ ATP2023FinalClean <- ATP2023FinalClean_C %>%
                         !is.na(LSeed) & EarliestLoserRound > match("R32", c("R128", "R64", "R32", "R16", "QF", "SF", "F")))) %>%
   ungroup()
 
-# Spread the Bye status to all matches for each player in each tournament
+# If bye received, mark all other matches in tournament as Bye received
 ATP2023FinalClean <- ATP2023FinalClean %>%
   group_by(Tournament, Winner) %>%
   mutate(WBye = ifelse(any(WBye == TRUE), TRUE, FALSE)) %>%
@@ -612,35 +585,25 @@ ATP2023FinalClean <- ATP2023FinalClean %>%
   mutate(LBye = ifelse(any(LBye == TRUE), TRUE, FALSE)) %>%
   ungroup()
 
+# Changing data type
 library(dplyr)
 ATP2023Final <- ATP2023Final %>%
   mutate(across(c(W1, W2, W3, W4, W5, L1, L2, L3, L4, L5), as.numeric))
 
 
+# ----- 5. Create Player Values ----
 
-
-
-# ----- Individual Values -----
-
-# Combine 'Winner' and 'Loser' columns and remove duplicates
+# Combine 'Winner' and 'Loser' 
 unique_players <- unique(c(ATP2023Final$Winner, ATP2023Final$Loser))
 
 # Create a new dataframe with 'Players' variable
 PlayersDF <- data.frame(Players = unique_players)
 
-# Display the first few rows of the new dataframe to verify
 head(PlayersDF)
-
-
-
-
-
-
-
 
 library(dplyr)
 
-# Step 1 & 2: Calculating total points for winners and losers separately and then combining
+# Calculate total points winners & losers separately 
 winner_points <- ATP2023Final %>%
   group_by(Winner) %>%
   summarize(W_Points = sum(WPoints, na.rm = TRUE)) %>%
@@ -656,18 +619,15 @@ all_points <- bind_rows(winner_points, loser_points) %>%
   group_by(Players) %>%
   summarize(`2023Pts` = sum(`2023Pts`, na.rm = TRUE))
  
-
-# Step 3 & 4: Joining with PlayersDF and ordering
+# Joining with PlayersDF and ordering
 PlayersDF <- left_join(PlayersDF, all_points, by = "Players")
   
-
-# Step 5: Generating the final ranking
+# Generating the final ranking
 PlayersDF <- PlayersDF %>%
   arrange(desc(`2023Pts`)) %>%
   mutate(`2023FinRnk` = row_number())
 
-
-# Add a new column 'TourFinalStatus' based on '2023FinRnk'
+# Add 'TourFinalStatus' column
 PlayersDF <- PlayersDF %>%
   mutate(TourFinalStatus = case_when(
     `2023FinRnk` <= 8 ~ "Qualified",
@@ -675,12 +635,12 @@ PlayersDF <- PlayersDF %>%
     TRUE ~ "Did not Qualify"
   ))
 
-
+# Create
 ATP2023Final <- ATP2023FinalClean
 
 
-
-# Step 1: Aggregate aces for each player from both winner and loser perspectives
+# ----- 6. Creating Values -----
+# Aggregate aces for winners and losers 
 winner_aces <- ATP2023Final %>%
   group_by(Winner) %>%
   summarize(TotalWAces = sum(WAce, na.rm = TRUE))
@@ -689,38 +649,41 @@ loser_aces <- ATP2023Final %>%
   group_by(Loser) %>%
   summarize(TotalLAces = sum(LAce, na.rm = TRUE))
 
-# Step 2: Combine the ace totals for each player
+# Combine ace totals for each player
 aces_combined <- bind_rows(winner_aces %>% rename(Player=Winner, Aces=TotalWAces), 
                            loser_aces %>% rename(Player=Loser, Aces=TotalLAces)) %>%
   group_by(Player) %>%
   summarize(TotalAces = sum(Aces, na.rm = TRUE))
 
-# Step 3: Merge total aces information back into PlayersDF
+# Merge total aces in PlayersDF
 PlayersDF <- merge(PlayersDF, aces_combined, by.x = "Players", by.y = "Player", all.x = TRUE)
 
-# Replace NA values with 0 for players who did not serve any aces
+# 0 in for 'NA' 
 PlayersDF$TotalAces[is.na(PlayersDF$TotalAces)] <- 0
 
 # Display the updated PlayersDF
 head(PlayersDF)
 
+# Load Libraries
 library(dplyr)
 library(stringr)
 library(dbplyr)
 library(tidyr)
+
+# Putting match name together for data row
 ATP2023Final <- ATP2023Final %>%
   mutate(MatchName = paste(Tournament,",",Round,":", Winner,"vs",Loser))
 
+# Alter value name
 ATP2023Final <- ATP2023Final %>%
   mutate(Series = str_replace(Series, "ATP500", "ATP 500"),
          Series = str_replace(Series, "ATP250", "ATP 250"))
 
-
-
+# Create 1st Serve In Percentage
 ATP2023Final <- ATP2023Final %>%
   mutate(W1stSv_Percentage = W1stIn / WTotalSVPts * 100,
          L1stSv_Percentage = L1stIn / LTotalSVPts * 100)
-# Aggregate to calculate overall 1stSv% for each player
+
 player_stats <- ATP2023Final %>%
   select(Winner, Loser, W1stSv_Percentage, L1stSv_Percentage) %>%
   pivot_longer(cols = c(Winner, Loser), 
@@ -731,28 +694,29 @@ player_stats <- ATP2023Final %>%
                values_to = "ServicePercentage") %>%
   group_by(Player) %>%
   summarise(Overall_1stSv_Percentage = mean(ServicePercentage, na.rm = TRUE))
-# Printing out the first few rows of the player_stats to verify
+# Checking dataframe
 head(player_stats)
 
+# Create 1st Serve Won Percentage
 ATP2023Final <- ATP2023Final %>%
   mutate(
     W1stSvWon_Percentage = (W1stWon / W1stIn) * 100,
     L1stSvWon_Percentage = (L1stWon / L1stIn) * 100
   )
-# BP Conversion Percentage
+# Createa BP Conversion Percentage
 ATP2023Final <- ATP2023Final %>%
   mutate(
     WBPConv_Percentage = (LBPFaced - LBPSave) / LBPFaced * 100,
     LBPConv_Percentage = (WBPFaced - WBPSave) / WBPFaced * 100
   )
-# 2nd Serve Points
+# Total 2nd Serve Points
 ATP2023Final <- ATP2023Final %>%
   mutate(
     WTotal2ndSVPts = WTotalSVPts - W1stIn,
     LTotal2ndSVPts = LTotalSVPts - L1stIn
   )
 
-# 2nd Serves In
+# 2nd ServesIn
 ATP2023Final <- ATP2023Final %>%
   mutate(
     W2ndIn = WTotal2ndSVPts - WDoubleFault,
@@ -765,17 +729,14 @@ ATP2023Final <- ATP2023Final %>%
     W2ndSvIn_Percentage = (WTotal2ndSVPts - WDoubleFault) / WTotal2ndSVPts * 100,
     L2ndSvIn_Percentage = (LTotal2ndSVPts - LDoubleFault) / LTotal2ndSVPts * 100
   )
-# 2nd Sv Win Percentage
+# 2nd Serve Won Percentage
 ATP2023Final <- ATP2023Final %>%
   mutate(
     W2ndSvWon_Percentage = (W2ndWon / W2ndIn) * 100,
     L2ndSvWon_Percentage = (L2ndWon / L2ndIn) * 100
   )
 
-
-
-
-# Aggregate necessary statistics
+# Aggregate stats
 player_stats_agg <- ATP2023Final %>%
   select(Winner, Loser, W1stSvWon_Percentage, L1stSvWon_Percentage, WBPConv_Percentage, LBPConv_Percentage, W2ndSvWon_Percentage, L2ndSvWon_Percentage, W1stSv_Percentage, L1stSv_Percentage, W2ndSvIn_Percentage, L2ndSvIn_Percentage) %>%
   pivot_longer(cols = c(Winner, Loser), names_to = "Player_Type", values_to = "Players") %>%
@@ -790,11 +751,10 @@ player_stats_agg <- ATP2023Final %>%
     SecondSv_Percentage = mean(Value[Statistic_Type %in% c("W2ndSvIn_Percentage", "L2ndSvIn_Percentage")], na.rm = TRUE)
   )
 
-# Merge these stats back into the original player_stats dataframe
+# Merge stats back into dataset
 PlayersDF <- left_join(PlayersDF, player_stats_agg, by = "Players")
 
-
-# Creating Double Fault Variables
+# Create Double Fault variables
 winner_DF <- ATP2023Final %>%
   group_by(Winner) %>%
   summarize(TotalWDF = sum(WDoubleFault, na.rm = TRUE))
@@ -812,11 +772,7 @@ DF_combined <- bind_rows(winner_DF %>% rename(Player=Winner, DF=TotalWDF),
 # Merging datasets
 PlayersDF <- merge(PlayersDF, DF_combined, by.x = "Players", by.y = "Player", all.x = TRUE)
 
-
-
-
-
-# Step 1: Calculate Matches Played and Wins
+# Calculate Matches Played and Wins
 player_matches <- ATP2023Final %>%
   select(Winner, Loser) %>%
   pivot_longer(cols = c(Winner, Loser), names_to = "Outcome", values_to = "Player") %>%
@@ -826,30 +782,508 @@ player_matches <- ATP2023Final %>%
     Wins = sum(Outcome == "Winner")
   )
 
-# Step 2: Calculate Win Percentage
+# Calculate Win Percentage
 player_matches <- player_matches %>%
   mutate(WinPerc = (Wins / MatchesPlayed) * 100)
 
-# Step 3: Merge with PlayersDF
+# Merge with PlayersDF
 PlayersDF <- left_join(PlayersDF, player_matches, by = c("Players" = "Player"))
 
-# Optionally, to view the modifications
-head(PlayersDF)
+
+# ----- B1705 | Analysis | 20.03.2024 -----
+# ----- 7. Adjustments -----
+# Loading libraries
+library(e1071)
+library(ggplot2)
+library(tidyverse)
+
+# Combine winner and loser data into one
+player_data <- bind_rows(
+  select(ATP2023Final, Age = WAge, Rank = WRank, OppRank = LRank, Aces = WAce, DF = WDoubleFault, '1stSvInPerc' = W1stSv_Percentage, '1stSvWonPerc' = W1stSvWon_Percentage, '2ndSvInPerc' = W2ndSvIn_Percentage, '2ndSvWonPerc' = W2ndSvWon_Percentage, BPConvPerc = WBPConv_Percentage, Player = Winner, Height = WHeight, Winner = Winner, Loser = Loser, Surface = Surface),
+  select(ATP2023Final, Age = LAge, Rank = LRank, OppRank = WRank, Aces =  LAce, DF = LDoubleFault,  '1stSvInPerc' = L1stSv_Percentage, '1stSvWonPerc' = L1stSvWon_Percentage, '2ndSvInPerc' = L2ndSvIn_Percentage, '2ndSvWonPerc' = L2ndSvWon_Percentage, BPConvPerc = LBPConv_Percentage, Player = Loser, Height = LHeight, Winner = Winner, Loser = Loser, Surface = Surface)
+) 
+
+# Assigning a unique numerical identifier to each entry
+player_data <- player_data %>%
+  mutate(entry_id = row_number())
+
+# Re-ordering variables
+player_data <- player_data %>%
+  select(entry_id, Player, Age, Rank, Surface, Height, OppRank, Aces, DF, '1stSvInPerc', '1stSvWonPerc', '2ndSvInPerc', '2ndSvWonPerc', BPConvPerc, Winner, Loser) 
+
+player_data <- player_data %>%
+  mutate(`Win?` = Player == Winner)
+
+player_data <- player_data %>%
+  select(-Winner, -Loser)
+
+library(dplyr)
+
+# Renaming variables
+player_data <- player_data %>%
+  rename(
+    FirstServeInPercent = `1stSvInPerc`,
+    SecondServeInPercent = `2ndSvInPerc`,
+    FirstServeWonPercent = `1stSvWonPerc`,
+    SecondServeWonPercent = `2ndSvWonPerc`,
+  )
 
 
-# ----- Tidy and Save -----
+# -----  8. Assessing for Errors or Outliers -----
+##### 8.1 Basic Statistics -----
+library(dplyr)
+library(psych)
 
+# selecting variables for stats
+statistics_summary <- player_data %>%
+  select(Aces, FirstServeInPercent, FirstServeWonPercent, DF, SecondServeInPercent, SecondServeWonPercent) %>%    # You can add more columns as needed
+  describe()
+
+# Print the summary table
+print(statistics_summary)
+
+# Putting stats in DF
+summary_dataframe <- as.data.frame(statistics_summary)
+
+# Selecting only relevant columns for simplicity, you can adjust as needed
+summary_cleaned <- summary_dataframe %>%
+  select(-c(mad, vars, trimmed)) %>%
+  rename(Mean = mean,
+         Std.Dev = sd,
+         Std.Error = se,
+         Median = median,
+         Min = min,
+         Max = max,
+         Range = range,
+         Kurtosis = kurtosis,
+         Skew = skew, 
+  )
+
+# Saving DF to put into paper
+library(openxlsx)
+write.xlsx(summary_cleaned, file = "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1705/Assessment 1/R Files/Saved Table/StatisticalSummary.xlsx", rowNames = FALSE)
+
+##### 8.2. Boxplots: Assessing Outliers -----
+boxplot(player_data$Aces, main = "Box Plot - Aces Outlier Detection")
+boxplot(player_data$FirstServeInPercent, main = "Box Plot - First Sv In Outlier Detection")
+boxplot(player_data$FirstServeWonPercent, main = "Box Plot - First Sv Won Outlier Detection")
+boxplot(player_data$DF, main = "Box Plot - DF Outlier Detection")
+boxplot(player_data$SecondServeInPercent, main = "Box Plot - Second Sv In Outlier Detection")
+boxplot(player_data$SecondServeWonPercent, main = "Box Plot - Second Sv Won Outlier Detection")
+
+##### 8.3. Scatterplot: Assessing Outliers -----
+
+library(ggplot2)
+# Create theme that tries to meet IEEE formatting 
+theme_ieee <- function() {
+  theme_minimal(base_size = 12) +  
+    theme(
+      text = element_text(family = "Times New Roman"),  
+      plot.title = element_blank(),  
+      axis.title = element_text(size = 12),  
+      axis.text = element_text(size = 11),  
+      legend.title = element_text(size = 11),
+      legend.text = element_text(size = 10),
+      panel.grid.major = element_blank(),  
+      panel.grid.minor = element_blank(), 
+      plot.background = element_blank(),
+      panel.background = element_blank(),
+      strip.background = element_blank()
+    )
+}
+
+# Scatterplot function 
+generate_ieee_scatterplots <- function(player_data, Height) {
+  dv_list <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", 
+               "SecondServeInPercent", "SecondServeWonPercent") 
+  
+  for (dv in dv_list) {
+    p <- ggplot(player_data, aes_string(x = Height, y = dv)) +
+      geom_point(color = "black", alpha = 0.5) +
+      geom_smooth(method = "lm", color = "red", se = FALSE) +
+      labs(title = paste("Scatterplot of", dv, "vs", "Height (cm)"), x = "Height (cm)", y = dv) +
+      theme_ieee()  # Custom theme
+    # Save plots to file
+    ggsave(filename = paste0("/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1705/Assessment 1/R Files/Plot Visual Saves/scatterplot_", dv, "_vs_", Height, ".png"), plot = p, width = 8, height = 6, dpi = 300)
+    
+    print(p)
+  }
+}
+
+generate_ieee_scatterplots(player_data, "Height")
+
+##### 8.4. Z-Scores: Assessing Outliers #####
+library(dplyr)
+# Calculate & print z-scores
+calculate_z_scores <- function(data) {
+  variables <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+  
+  # Calculating z-scores
+  z_scores <- data %>%
+    dplyr::select(dplyr::all_of(variables)) %>%
+    scale()
+  
+  # Adding the z-score columns back in
+  for (var in variables) {
+    data[[paste0(var, "_z")]] <- z_scores[, var]
+  }
+  
+  return(data)
+}
+
+player_data_with_z <- calculate_z_scores(player_data)
+head(player_data_with_z)
+
+# Z-score columns selected
+z_score_columns <- c("Aces_z", "DF_z", "FirstServeInPercent_z", "FirstServeWonPercent_z", "SecondServeInPercent_z", "SecondServeWonPercent_z")
+
+# Define threshold for outliers
+threshold <- 2
+
+# Loop through z-score columns, create seperate DF
+for(z_col in z_score_columns) {
+  
+  outlier_indices <- which(abs(player_data_with_z[[z_col]]) > threshold)
+  
+  # If outliers, create DFs for them
+  if(length(outlier_indices) > 0) {
+    df_name <- paste0("outliers_", gsub("_z", "", z_col))
+    assign(df_name, player_data_with_z[outlier_indices, ])
+  }
+}
+
+# Inspect individual tables to determine if values are outliers or likely to be accurate 
+# Possible outliers were matched as accurate within base dataset, and represent 
+# accurate, real-world performance metrics produced by players and not recording errors
+
+# ----- 9. Testing Assumptions -----
+##### 9.1. Normality Testing -----
+
+# Histogram Plots
+hist(player_data$Aces, main = "Histogram of Data Showing Normal Distribution", xlab = "Aces Values", border = "blue", col = "green")
+hist(player_data$FirstServeInPercent, main = "Histogram of Data Showing Normal Distribution", xlab = "First Serve In Values", border = "blue", col = "green")
+hist(player_data$FirstServeWonPercent, main = "Histogram of Data Showing Normal Distribution", xlab = "First Serve Won Values", border = "blue", col = "green")
+hist(player_data$DF, main = "Histogram of Data Showing Normal Distribution", xlab = "DF Values", border = "blue", col = "green")
+hist(player_data$SecondServeInPercent, main = "Histogram of Data Showing Normal Distribution", xlab = "Second Serve In Values", border = "blue", col = "green")
+hist(player_data$SecondServeWonPercent, main = "Histogram of Data Showing Normal Distribution", xlab = "Second Serve Won Values", border = "blue", col = "green")
+
+# Q-Q Plot Normality Distributions
+qqnorm(player_data$Aces)
+qqline(player_data$Aces, col = "red")
+qqnorm(player_data$FirstServeInPercent)
+qqline(player_data$FirstServeInPercent, col = "red")
+qqnorm(player_data$FirstServeWonPercent)
+qqline(player_data$FirstServeWonPercent, col = "red")
+qqnorm(player_data$DF)
+qqline(player_data$DF, col = "red")
+qqnorm(player_data$SecondServeInPercent)
+qqline(player_data$SecondServeInPercent, col = "red")
+qqnorm(player_data$SecondServeWonPercent)
+qqline(player_data$SecondServeWonPercent, col = "red")
+
+# Anderson-Darling testing, 
+library(nortest)
+
+variables_to_test <- c("Aces", "DF", "FirstServeInPercent", "FirstServeWonPercent", "SecondServeInPercent", "SecondServeWonPercent")
+
+for (variable in variables_to_test) {
+  ad_test_result <- ad.test(player_data[[variable]])
+  print(paste("Anderson-Darling Test Result for", variable))
+  print(ad_test_result)
+}
+
+##### 9.2. Homoscedasticity Testing -----
+library(lmtest) 
+library(dplyr) 
+
+# Function to run Breusch-Pagan tests
+run_breusch_pagan_tests <- function(data, dependent_vars, independent_var) {
+  results <- list()
+  
+  for (dv in dependent_vars) {
+    
+    formula <- as.formula(paste(dv, "~", independent_var))
+    model <- lm(formula, data = data)
+    test_result <- bptest(model)
+    results[[dv]] <- test_result
+  }
+  
+  return(results)
+}
+
+# Metrics to test
+metrics <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+
+# View & run test
+bp_tests_results <- run_breusch_pagan_tests(player_data, metrics, "Height")
+print(bp_tests_results)
+
+##### 9.3. Linearity Testing -----
+##### Residual Plots: Code Function -----
+
+make_residual_plots <- function(data, variables) {
+  for (var in variables) {
+    
+    model <- lm(reformulate("Height", response = var), data = data)
+    
+    plot(model$fitted.values, resid(model),
+         xlab = "Fitted Values", ylab = "Residuals",
+         main = paste("Residuals vs Fitted for", var))
+    abline(h = 0, col = "red")
+  }
+}
+
+# Specify  variables for residual plots
+variables_to_plot <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+
+# Call function & variables
+make_residual_plots(player_data, variables_to_plot)
+
+
+##### Scatterplots: Code Function -----
+# Scatterplot function
+generate_scatterplots <- function(data, variables) {
+  for (var in variables) {
+    
+    p <- ggplot(data, aes(x = Height, y = .data[[var]])) +
+      geom_point(aes(color = Height), alpha = 0.6) +  
+      geom_smooth(method = "lm", color = "blue", se = FALSE) +  
+      labs(title = paste(var, "by Height"), x = "Height (cm)", y = var) +
+      theme_minimal()
+    
+    print(p)
+  }
+}
+
+# Specifying variables 
+variables_to_plot <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF",  "SecondServeInPercent", "SecondServeWonPercent")
+
+# Execute function with variables
+generate_scatterplots(player_data, variables_to_plot)
+
+
+##### 9.4. Independence of Observations -----
+
+# Violated; each data entry has an equivalent data entry from match which may influence 
+# and is influenced, and data entries are at risk of being influenced dependent 
+# on player form, confidence from match results of their previous match etc. 
+
+##### 9.5. Data Transformation -----
+
+# Variables for transformation 
+variables <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+
+# Adding small constant to make suitable for log transformation
+player_data_adj <- player_data
+player_data_adj[variables] <- lapply(player_data_adj[variables], function(x) ifelse(x == 0, x + 1, x))
+
+# Transformations
+log_transformed <- lapply(player_data_adj[variables], log)
+sqrt_transformed <- lapply(player_data_adj[variables], sqrt)
+squared_transformed <- lapply(player_data_adj[variables], function(x) x^2)
+
+# Including transformed values back into 
+player_data_logtrans <- cbind(player_data_adj, setNames(log_transformed, paste0(names(log_transformed), "_log")))
+player_data_sqrttrans <- cbind(player_data_adj, setNames(sqrt_transformed, paste0(names(sqrt_transformed), "_sqrt")))
+player_data_squaredtrans <- cbind(player_data_adj, setNames(squared_transformed, paste0(names(squared_transformed), "_squared")))
+
+# Focus Variables 
+metrics <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+
+# List of transformed datasets
+datasets <- list(
+  logtrans = player_data_logtrans,
+  sqrttrans = player_data_sqrttrans,
+  squaredtrans = player_data_squaredtrans
+)
+
+# Transformation suffixes
+suffixes <- c("_log", "_sqrt", "_squared")
+
+# Generate Q-Q and Histogram plots on transformed data to assess assumptions still needed
+for (key in names(datasets)) {
+  dataset <- datasets[[key]]
+  suffix <- suffixes[which(names(datasets) == key)]
+  
+  for (metric in metrics) {
+    transformed_metric <- paste0(metric, suffix)
+    
+    # QQ plot
+    qqnorm(dataset[[transformed_metric]], main = paste("QQ Plot -", transformed_metric))
+    qqline(dataset[[transformed_metric]], col = "red")
+    
+    # Histogram
+    hist(dataset[[transformed_metric]], main = paste("Histogram -", transformed_metric), xlab = transformed_metric, breaks = 20, col = 'skyblue', border = 'white')
+  }
+}
+
+##### 9.6. Heteroscedasticity Testing: Transformed Data -----
+library(lmtest)
+
+# Log transformed Breusch-Pagen tests
+# Function 
+run_breusch_pagan_log <- function(data) {
+  results_log <- list()
+  metrics <- c("Aces_log", "FirstServeInPercent_log", "FirstServeWonPercent_log", 
+               "DF_log", "SecondServeInPercent_log", "SecondServeWonPercent_log")
+  
+  for (metric in metrics) {
+    formula <- as.formula(paste0(metric, " ~ Height + Rank + Age + Surface + OppRank"))
+    model <- lm(formula, data = data)
+    results_log[[metric]] <- bptest(model)
+  }
+  
+  return(results_log)
+}
+
+# Running function and printing
+results_log <- run_breusch_pagan_log(player_data_logtrans)
+print(results_log)
+
+# Square root transformed Breusch-Pagan tests
+# Function 
+run_breusch_pagan_sqrt <- function(data) {
+  results_sqrt <- list()
+  metrics <- c("Aces_sqrt", "FirstServeInPercent_sqrt", "FirstServeWonPercent_sqrt", 
+               "DF_sqrt", "SecondServeInPercent_sqrt", "SecondServeWonPercent_sqrt")
+  
+  for (metric in metrics) {
+    formula <- as.formula(paste0(metric, " ~ Height + Rank + Age + Surface + OppRank"))
+    model <- lm(formula, data = data)
+    results_sqrt[[metric]] <- bptest(model)
+  }
+  
+  return(results_sqrt)
+}
+
+# Running functions and printing
+results_sqrt <- run_breusch_pagan_sqrt(player_data_sqrttrans)
+print(results_sqrt)
+
+# Square transformed Breusch-Pagen tests
+# Function 
+run_breusch_pagan_squared <- function(data) {
+  results_squared <- list()
+  metrics <- c("Aces_squared", "FirstServeInPercent_squared", "FirstServeWonPercent_squared", 
+               "DF_squared", "SecondServeInPercent_squared", "SecondServeWonPercent_squared")
+  
+  for (metric in metrics) {
+    formula <- as.formula(paste0(metric, " ~ Height + Rank + Age + Surface + OppRank"))
+    model <- lm(formula, data = data)
+    results_squared[[metric]] <- bptest(model)
+  }
+  
+  return(results_squared)
+}
+
+# Running functions and printing
+results_squared <- run_breusch_pagan_squared(player_data_squaredtrans)
+print(results_squared)
+
+##### 9.6.1. Yeo-Johnson Transformation and Testing -----
+# Yeo-Johnson Transformation Code
+# Load library
+library(bestNormalize)
+
+# Variables 
+variables_to_transform <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+
+# Initialize the new dataset with existing data
+player_data_transformed <- player_data
+
+# Apply Yeo-Johnson transformations, add to new dataset
+for (var in variables_to_transform) {
+  transformation_result <- bestNormalize(player_data[[var]], silent = TRUE)
+  player_data_transformed[[paste0(var, "_YJ")]] <- predict(transformation_result, player_data[[var]])
+}
+
+# Check structure for inclusion
+str(player_data_transformed)
+
+
+
+# Yeo-Johnson transformed Breusch-Pagen tests
+# Function 
+run_breusch_pagan_YJ <- function(data) {
+  results_YJ <- list()
+  metrics <- c("Aces_YJ", "FirstServeInPercent_YJ", "FirstServeWonPercent_YJ", 
+               "DF_YJ", "SecondServeInPercent_YJ", "SecondServeWonPercent_YJ")
+  
+  for (metric in metrics) {
+    formula <- as.formula(paste0(metric, " ~ Height + Rank + Age + Surface + OppRank"))
+    model <- lm(formula, data = data)
+    results_YJ[[metric]] <- bptest(model)
+  }
+  
+  return(results_YJ)
+}
+
+# Running function and printing
+results_YJ <- run_breusch_pagan_YJ(player_data_transformed)
+print(results_YJ)
+
+##### 9.6.2. Running Q-Q & Histograms for YJ Transformed Data -----
+# List of transformed variables 
+variables_to_transform_YJ <- c("Aces_YJ", "FirstServeInPercent_YJ", "FirstServeWonPercent_YJ", "DF_YJ", "SecondServeInPercent_YJ", "SecondServeWonPercent_YJ")
+
+# QQ plot and Histograms function for YJ transformations
+plot_normality_check <- function(data, variables) {
+  par(mfrow = c(2, 2)) 
+  for (var in variables) {
+    # QQ plot
+    qqnorm(data[[var]], main = paste("QQ Plot -", var))
+    qqline(data[[var]], col = "red")
+    # Histogram
+    hist(data[[var]], main = paste("Histogram -", var), xlab = var, breaks = 30, col = 'skyblue', border = 'white')
+  }
+}
+
+# Running functions
+plot_normality_check(player_data_transformed, variables_to_transform_YJ)
+
+# Assumptions were not deemed to be met after transformations; action taken is to run non-parametric tests
+
+# ----- 10. Statistical Analysis -----
+# Kendall's Tau 
+# Variables
+variables <- c("Aces", "FirstServeInPercent", "FirstServeWonPercent", "DF", "SecondServeInPercent", "SecondServeWonPercent")
+
+# Function to run tests with Height vs DV
+for (var in variables) {
+  kendall_test <- cor.test(player_data$Height, player_data[[var]], method = "kendall")
+  
+  # Print 
+  cat("\nKendall's Tau correlation test between Height and", var, ":\n")
+  print(kendall_test)
+}
+
+# ----- 11. Results -----
+
+# In paper, report results and statistics.
+
+# ----- 12. Libraries Used Citations -----
+
+# Libraries
+libraries <- c("ggplot2", "tidyverse", "e1071", "nortest", "lmtest", "bestNormalize", "dplyr", "lubridate", "stringr", "dbplyr", "tidyr")
+
+# Function to print each citation
+for (lib in libraries) {
+  cat("Citation for", lib, ":\n")
+  print(citation(lib))
+  cat("\n") 
+}
+
+# ----- 13. Tidy Environment ----
 all_objects <- ls()
-objects_to_keep <- c("PlayersDF", "ATP2023Final")
+objects_to_keep <- c("PlayersDF", "ATP2023Final", "player_data")
 objects_to_remove <- setdiff(all_objects, objects_to_keep)
 
-# Leave ATP2023Final
+# Leave ATP2023Final, PlayersDF & player_data
 rm(list = objects_to_remove)
 
-# Save ATP2023Final dataset as .csv file
-write.csv(ATP2023Final, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/ATP2023Final.csv", row.names = FALSE)
+# Save player_data dataset as .xlsx file
+write.xlsx(player_data, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1705/Assessment 1/R Files/player_data.xlsx", rowNames = FALSE)
 
-write.csv(PlayersDF, "/Users/seanmccrone/Desktop/MASTERS DEGREE/Course Material/B1703/Assessment 2/PlayersDF.csv", row.names = FALSE)
 
 
 
